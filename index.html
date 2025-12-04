@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>System Umawiania Spotkań - Frontend Testowy</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; background-color: #f4f4f4; }
+        .container { display: flex; gap: 30px; }
+        .form-box { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); flex: 1; }
+        h2 { border-bottom: 2px solid #ccc; padding-bottom: 10px; }
+        label { display: block; margin-top: 10px; font-weight: bold; }
+        input[type="text"], input[type="email"] { width: 90%; padding: 8px; margin-top: 5px; border: 1px solid #ccc; border-radius: 4px; }
+        button { background-color: #0078d4; color: white; padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer; margin-top: 20px; }
+        button:hover { background-color: #005a9e; }
+        #message { margin-top: 20px; padding: 10px; border-radius: 4px; font-weight: bold; }
+        .success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+    </style>
+</head>
+<body>
+
+    <h1>Testowe API Umawiania Spotkań</h1>
+    <p>Uruchom lokalnie Azure Functions (`func start`) przed użyciem tych formularzy.</p>
+    <div id="message"></div>
+
+    <div class="container">
+
+        <div class="form-box">
+            <h2>➕ Dodaj Osobę (POST /api/users)</h2>
+            <form id="userForm">
+                <label for="userName">Imię i Nazwisko:</label>
+                <input type="text" id="userName" required>
+
+                <label for="userEmail">Email:</label>
+                <input type="email" id="userEmail" required>
+
+                <button type="submit">Dodaj Użytkownika</button>
+            </form>
+            <small>Pamiętaj, że ID nowej osoby jest potrzebne do rezerwacji spotkania.</small>
+        </div>
+
+        <div class="form-box">
+            <h2>📅 Dodaj Spotkanie (POST /api/appointments)</h2>
+            <form id="appointmentForm">
+                <label for="appUserId">ID Osoby (user_id):</label>
+                <input type="text" id="appUserId" placeholder="Wklej ID nowo dodanej osoby" required>
+
+                <label for="appClientName">Imię Klienta:</label>
+                <input type="text" id="appClientName" required>
+
+                <label for="appStartTime">Czas rozpoczęcia (ISO 8601, np. 2025-12-10T14:30:00Z):</label>
+                <input type="text" id="appStartTime" value="2025-12-10T14:30:00Z" required>
+
+                <label for="appDuration">Czas trwania (minuty, domyślnie 30):</label>
+                <input type="text" id="appDuration" value="30">
+
+                <button type="submit">Zarezerwuj Spotkanie</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE_URL = 'http://localhost:7071/api';
+        const messageDiv = document.getElementById('message');
+
+        function displayMessage(text, isSuccess) {
+            messageDiv.textContent = text;
+            messageDiv.className = isSuccess ? 'success' : 'error';
+            setTimeout(() => {
+                messageDiv.textContent = '';
+                messageDiv.className = '';
+            }, 8000);
+        }
+
+        // -----------------------------------------------------------------
+        // LOGIKA DLA DODAWANIA UŻYTKOWNIKA
+        // -----------------------------------------------------------------
+        document.getElementById('userForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const name = document.getElementById('userName').value;
+            const email = document.getElementById('userEmail').value;
+
+            const userData = { name, email };
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/AddUser`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(userData)
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    const successText = `✅ Użytkownik dodany! ID: ${result.id}. (Skopiuj to ID do rezerwacji!)`;
+                    displayMessage(successText, true);
+                    console.log('Nowy Użytkownik:', result);
+                    // Opcjonalnie wklej ID do formularza rezerwacji
+                    document.getElementById('appUserId').value = result.id;
+                } else {
+                    displayMessage(`❌ Błąd (${response.status}): ${result.error || JSON.stringify(result)}`, false);
+                }
+            } catch (error) {
+                displayMessage(`❌ Błąd połączenia: Serwer Functions nie działa lub CORS jest wyłączony.`, false);
+                console.error('Błąd:', error);
+            }
+        });
+
+        // -----------------------------------------------------------------
+        // LOGIKA DLA DODAWANIA SPOTKANIA
+        // -----------------------------------------------------------------
+        document.getElementById('appointmentForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const user_id = document.getElementById('appUserId').value;
+            const client_name = document.getElementById('appClientName').value;
+            const start_time = document.getElementById('appStartTime').value;
+            const duration_minutes = parseInt(document.getElementById('appDuration').value, 10) || 30;
+
+            const appointmentData = { user_id, client_name, start_time, duration_minutes };
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/AddAppointment`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(appointmentData)
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    displayMessage(`✅ Spotkanie zarezerwowane! ID: ${result.id}`, true);
+                    console.log('Nowe Spotkanie:', result);
+                } else {
+                    displayMessage(`❌ Błąd (${response.status}): ${result.error || JSON.stringify(result)}`, false);
+                }
+            } catch (error) {
+                displayMessage(`❌ Błąd połączenia: Serwer Functions nie działa lub CORS jest wyłączony.`, false);
+                console.error('Błąd:', error);
+            }
+        });
+    </script>
+
+</body>
+</html>
