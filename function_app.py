@@ -9,7 +9,6 @@ from datetime import datetime, timedelta
 
 
 CONTAINER_USERS = "users"
-# CONTAINER_APPOINTMENTS = "appointments"
 TENANT_ID_VALUE = "main_tenant"
 
 app = func.FunctionApp(http_auth_level=func.AuthLevel.ANONYMOUS)
@@ -24,7 +23,6 @@ CORS_HEADERS = {
 @app.route(route="AddUser", methods=["POST", "OPTIONS"])
 def AddUser(req: func.HttpRequest) -> func.HttpResponse:
 
-    # Preflight CORS
     if req.method == "OPTIONS":
         return func.HttpResponse(
             status_code=200,
@@ -121,7 +119,6 @@ def AddAppointment(req: func.HttpRequest) -> func.HttpResponse:
             headers=CORS_HEADERS
         )
 
-    # Parsowanie daty
     try:
         start_dt = datetime.fromisoformat(start_time_iso.replace("Z", "+00:00"))
         end_dt = start_dt + timedelta(minutes=30)
@@ -141,7 +138,6 @@ def AddAppointment(req: func.HttpRequest) -> func.HttpResponse:
         "TenantId": TENANT_ID_VALUE
     }
 
-    # Zapis do CosmosDB
     try:
         client = CosmosClient(os.environ["COSMOS_ENDPOINT"], os.environ["COSMOS_KEY"])
         database = client.get_database_client(os.environ["COSMOS_DB_NAME"])
@@ -175,7 +171,6 @@ def AddAppointment(req: func.HttpRequest) -> func.HttpResponse:
 @app.route(route="GetUsers", methods=["GET", "OPTIONS"])
 def GetUsers(req: func.HttpRequest) -> func.HttpResponse:
 
-    # Preflight CORS
     if req.method == "OPTIONS":
         return func.HttpResponse(
             status_code=200,
@@ -197,7 +192,6 @@ def GetUsers(req: func.HttpRequest) -> func.HttpResponse:
             partition_key=TENANT_ID_VALUE
         ))
 
-        # 🔥 FILTROWANIE — tylko rekordy zawierające pole "name", niewpusty string
         filtered_users = [
             {"id": u.get("id"), "name": u.get("name")}
             for u in users_data
@@ -236,7 +230,7 @@ def GetUserAppointments(req: func.HttpRequest) -> func.HttpResponse:
     try:
         client = CosmosClient(os.environ["COSMOS_ENDPOINT"], os.environ["COSMOS_KEY"])
         database = client.get_database_client(os.environ["COSMOS_DB_NAME"])
-        appointments_container = database.get_container_client(CONTAINER_USERS)  # Używasz jednego kontenera
+        appointments_container = database.get_container_client(CONTAINER_USERS)
 
         query = "SELECT * FROM c WHERE c.user_id=@user_id"
         parameters = [{"name": "@user_id", "value": user_id}]
@@ -244,7 +238,7 @@ def GetUserAppointments(req: func.HttpRequest) -> func.HttpResponse:
         appointments_data = list(appointments_container.query_items(
             query=query,
             parameters=parameters,
-            enable_cross_partition_query=True  # prawdopodobnie trzeba true jeśli partition_key to TenantId
+            enable_cross_partition_query=True
         ))
 
         return func.HttpResponse(
