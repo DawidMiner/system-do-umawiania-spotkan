@@ -27,7 +27,7 @@
     <div class="container">
 
         <div class="form-box">
-            <h2>➕ Dodaj Osobę (POST /api/users)</h2>
+            <h2>➕ Dodaj Osobę (POST /api/AddUser)</h2>
             <form id="userForm">
                 <label for="userName">Imię i Nazwisko:</label>
                 <input type="text" id="userName" required>
@@ -41,19 +41,23 @@
         </div>
 
         <div class="form-box">
-            <h2>📅 Dodaj Spotkanie (POST /api/appointments)</h2>
+            <h2>📅 Dodaj Spotkanie (POST /api/AddAppointment)</h2>
             <form id="appointmentForm">
-                <label for="appUserId">ID Osoby (user_id):</label>
-                <input type="text" id="appUserId" placeholder="Wklej ID nowo dodanej osoby" required>
+                <label for="appUserId">Wybierz Użytkownika:</label>
+                <select id="appUserId" required>
+                    <option value="" disabled selected>Ładowanie użytkowników...</option>
+                </select>
 
                 <label for="appClientName">Imię Klienta:</label>
                 <input type="text" id="appClientName" required>
 
-                <label for="appStartTime">Czas rozpoczęcia (ISO 8601, np. 2025-12-10T14:30:00Z):</label>
-                <input type="text" id="appStartTime" value="2025-12-10T14:30:00Z" required>
+                <label for="appDate">Data spotkania:</label>
+                <input type="date" id="appDate" required>
 
-                <label for="appDuration">Czas trwania (minuty, domyślnie 30):</label>
-                <input type="text" id="appDuration" value="30">
+                <label for="appTime">Godzina spotkania:</label>
+                <select id="appTime" required>
+                    <option value="" disabled selected>Wybierz użytkownika, aby załadować terminy</option>
+                </select>
 
                 <button type="submit">Zarezerwuj Spotkanie</button>
             </form>
@@ -61,7 +65,7 @@
     </div>
 
     <script>
-        const API_BASE_URL = 'http://localhost:7071/api';
+        const API_BASE_URL = 'http://localhost:7072/api';
         const messageDiv = document.getElementById('message');
 
         function displayMessage(text, isSuccess) {
@@ -81,26 +85,35 @@
 
             const name = document.getElementById('userName').value;
             const email = document.getElementById('userEmail').value;
+            console.log(email);
 
             const userData = { name, email };
+            console.log(userData);
 
             try {
+                console.log("test1");
                 const response = await fetch(`${API_BASE_URL}/AddUser`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(userData)
                 });
+                console.log("test");
 
-                const result = await response.json();
+                // Sprawdzamy, czy odpowiedź nie jest pusta, zanim wywołamy .json()
+                const contentType = response.headers.get("content-type");
+                let result = {};
+                if (contentType && contentType.indexOf("application/json") !== -1) {
+                    result = await response.json();
+                }
 
                 if (response.ok) {
-                    const successText = `✅ Użytkownik dodany! ID: ${result.id}. (Skopiuj to ID do rezerwacji!)`;
+                    const successText = `✅ Użytkownik dodany! ID: ${result.id || 'N/A'}. (Skopiuj to ID do rezerwacji!)`;
                     displayMessage(successText, true);
                     console.log('Nowy Użytkownik:', result);
-                    // Opcjonalnie wklej ID do formularza rezerwacji
-                    document.getElementById('appUserId').value = result.id;
+                    document.getElementById('appUserId').value = result.id || '';
                 } else {
-                    displayMessage(`❌ Błąd (${response.status}): ${result.error || JSON.stringify(result)}`, false);
+                    const statusText = result.message || JSON.stringify(result);
+                    displayMessage(`❌ Błąd (${response.status}): ${statusText || response.statusText}`, false);
                 }
             } catch (error) {
                 displayMessage(`❌ Błąd połączenia: Serwer Functions nie działa lub CORS jest wyłączony.`, false);
@@ -116,10 +129,14 @@
 
             const user_id = document.getElementById('appUserId').value;
             const client_name = document.getElementById('appClientName').value;
-            const start_time = document.getElementById('appStartTime').value;
-            const duration_minutes = parseInt(document.getElementById('appDuration').value, 10) || 30;
+            const dateValue = document.getElementById('appDate').value; // np. "2025-12-10"
+            const timeValue = document.getElementById('appTime').value; // teraz z selecta
 
-            const appointmentData = { user_id, client_name, start_time, duration_minutes };
+
+            const start_time_iso = `${dateValue}T${timeValue}:00Z`;
+
+
+            const appointmentData = { user_id, client_name, start_time_iso};
 
             try {
                 const response = await fetch(`${API_BASE_URL}/AddAppointment`, {
@@ -128,19 +145,209 @@
                     body: JSON.stringify(appointmentData)
                 });
 
-                const result = await response.json();
+                const contentType = response.headers.get("content-type");
+                let result = {};
+                if (contentType && contentType.indexOf("application/json") !== -1) {
+                    result = await response.json();
+                }
 
                 if (response.ok) {
-                    displayMessage(`✅ Spotkanie zarezerwowane! ID: ${result.id}`, true);
+                    displayMessage(`✅ Spotkanie zarezerwowane! ID: ${result.id || 'N/A'}`, true);
                     console.log('Nowe Spotkanie:', result);
                 } else {
-                    displayMessage(`❌ Błąd (${response.status}): ${result.error || JSON.stringify(result)}`, false);
+                    const statusText = result.message || JSON.stringify(result);
+                    displayMessage(`❌ Błąd (${response.status}): ${statusText || response.statusText}`, false);
                 }
             } catch (error) {
                 displayMessage(`❌ Błąd połączenia: Serwer Functions nie działa lub CORS jest wyłączony.`, false);
                 console.error('Błąd:', error);
             }
         });
+
+        async function loadUsers() {
+            const selectElement = document.getElementById('appUserId');
+
+            // Wyczyść starą opcję ładowania
+            selectElement.innerHTML = '';
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/GetUsers`, {
+                    method: 'GET',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+
+                if (response.ok) {
+                    const users = await response.json();
+
+                    // Jeśli lista pusta, dodaj opcję informacyjną
+                    if (users.length === 0) {
+                         const option = document.createElement('option');
+                         option.value = '';
+                         option.textContent = 'Brak dodanych użytkowników';
+                         selectElement.appendChild(option);
+                    } else {
+                        // Dodaj opcję domyślną
+                        let defaultOption = document.createElement('option');
+                        defaultOption.value = '';
+                        defaultOption.textContent = '--- Wybierz ---';
+                        selectElement.appendChild(defaultOption);
+
+                        // Wypełnianie listy
+                        users.forEach(user => {
+                            const option = document.createElement('option');
+                            // Wartość (value) to faktyczny ID potrzebny API
+                            option.value = user.id;
+                            // Tekst to nazwa użytkownika
+                            option.textContent = user.name;
+                            selectElement.appendChild(option);
+                        });
+                    }
+
+                } else {
+                    console.error('Błąd ładowania użytkowników:', response.status);
+                    const option = document.createElement('option');
+                    option.value = '';
+                    option.textContent = `Błąd ładowania (${response.status})`;
+                    selectElement.appendChild(option);
+                }
+            } catch (error) {
+                console.error('Błąd połączenia z API:', error);
+                const option = document.createElement('option');
+                option.value = '';
+                option.textContent = 'Błąd połączenia z API';
+                selectElement.appendChild(option);
+            }
+        }
+
+        // Wywołaj funkcję ładowania użytkowników, gdy strona jest gotowa
+document.addEventListener('DOMContentLoaded', () => {
+    loadUsers();
+
+    const timeSelect = document.getElementById('appTime');
+    const userSelect = document.getElementById('appUserId');
+    const dateInput = document.getElementById('appDate');
+
+    async function loadAvailableSlots() {
+    const userId = userSelect.value;
+    const dateValue = dateInput.value;
+
+    if (!userId) {
+        timeSelect.innerHTML = '<option value="" disabled selected>Wybierz użytkownika, aby załadować terminy</option>';
+        return;
+    }
+
+    if (!dateValue) {
+        timeSelect.innerHTML = '<option value="" disabled selected>Wybierz datę, aby załadować terminy</option>';
+        return;
+    }
+
+    // Funkcja parsująca ISO string UTC jako lokalną datę (bez przesunięcia)
+    function parseLocalDateTime(dateTimeStr) {
+        const parts = dateTimeStr.split('T');
+        const dateParts = parts[0].split('-');
+        const timeParts = parts[1].replace('Z', '').split(':');
+
+        return new Date(
+            Number(dateParts[0]),
+            Number(dateParts[1]) - 1,
+            Number(dateParts[2]),
+            Number(timeParts[0]),
+            Number(timeParts[1]),
+            Number(timeParts[2])
+        );
+    }
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/GetUserAppointments?user_id=${encodeURIComponent(userId)}`, {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' }
+        });
+
+        if (!response.ok) {
+            throw new Error(`Błąd ładowania terminów: ${response.status}`);
+        }
+
+        const appointments = await response.json();
+console.log(appointments);
+        const openingHour = 8;
+        const closingHour = 16;
+        const intervalMinutes = 15;
+
+        // Bazowa data lokalna - wybrany dzień (godzina 00:00)
+        const baseDate = new Date(dateValue);
+        baseDate.setHours(0, 0, 0, 0);
+
+        function formatTime(date) {
+            const h = date.getHours().toString().padStart(2, '0');
+            const m = date.getMinutes().toString().padStart(2, '0');
+            return `${h}:${m}`;
+        }
+
+        // Generujemy wszystkie sloty 15-minutowe dla dnia
+        let slots = [];
+        for (let h = openingHour; h < closingHour; h++) {
+            for (let m = 0; m < 60; m += intervalMinutes) {
+                const slotStart = new Date(baseDate);
+                slotStart.setHours(h, m, 0, 0);
+                slots.push(slotStart);
+            }
+        }
+console.log(slots);
+        // Generujemy busyTimes - 30 minut przed i w trakcie spotkań
+        let busyTimes = [];
+        appointments.forEach(app => {
+    // Parsujemy datę z backendu (UTC)
+    const start = new Date(app.start_time);
+    const end = new Date(app.end_time);
+
+    // Odejmujemy 1 godzinę (60 minut)
+    start.setHours(start.getHours() - 1);
+    end.setHours(end.getHours() - 1);
+
+    console.log(start);
+    console.log(end);
+
+    const busyStart = new Date(start);
+    busyStart.setMinutes(busyStart.getMinutes() - 29);
+
+    let time = new Date(busyStart);
+    while (time < end) {
+        busyTimes.push(new Date(time));
+        time.setMinutes(time.getMinutes() + 1);
+    }
+});
+console.log(busyTimes);
+        // Usuwamy z slots wszystkie busyTimes (porównujemy getTime())
+        slots = slots.filter(slotStart => {
+            return !busyTimes.some(busyTime => busyTime.getTime() === slotStart.getTime());
+        });
+
+        // Wypełniamy select
+        timeSelect.innerHTML = '';
+
+        if (slots.length === 0) {
+            timeSelect.innerHTML = '<option value="" disabled>Brak dostępnych terminów</option>';
+        } else {
+            timeSelect.innerHTML = '<option value="" disabled selected>Wybierz godzinę</option>';
+            slots.forEach(slotStart => {
+                const timeValue = formatTime(slotStart);
+                timeSelect.innerHTML += `<option value="${timeValue}">${timeValue}</option>`;
+            });
+        }
+
+    } catch (error) {
+        console.error('Błąd ładowania terminów:', error);
+        timeSelect.innerHTML = '<option value="" disabled>Nie udało się załadować terminów</option>';
+    }
+}
+
+
+
+
+    userSelect.addEventListener('change', loadAvailableSlots);
+    dateInput.addEventListener('change', loadAvailableSlots);
+});
+
     </script>
 
 </body>
