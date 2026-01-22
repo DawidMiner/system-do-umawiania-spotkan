@@ -28,6 +28,17 @@
                 <input type="text" id="userName" required>
                 <label for="userEmail">Email:</label>
                 <input type="email" id="userEmail" required>
+                <h3>Godziny dostępności:</h3>
+                <div id="availability-settings">
+                    <div class="day-row">
+                        <span>Poniedziałek:</span>
+                        <input type="time" id="start-Mon" value="08:00"> - <input type="time" id="end-Mon" value="16:00">
+                    </div>
+                    <div class="day-row">
+                        <span>Wtorek:</span>
+                        <input type="time" id="start-Tue" value="08:00"> - <input type="time" id="end-Tue" value="16:00">
+                    </div>
+                </div>
                 <button type="submit">Dodaj Użytkownika</button>
             </form>
         </div>
@@ -51,17 +62,7 @@
                     <option value="" disabled selected>Wybierz użytkownika, aby załadować terminy</option>
                 </select>
                 <br>
-                <h3>Godziny dostępności:</h3>
-                <div id="availability-settings">
-                    <div class="day-row">
-                        <span>Poniedziałek:</span>
-                        <input type="time" id="start-Mon" value="08:00"> - <input type="time" id="end-Mon" value="16:00">
-                    </div>
-                    <div class="day-row">
-                        <span>Wtorek:</span>
-                        <input type="time" id="start-Tue" value="08:00"> - <input type="time" id="end-Tue" value="16:00">
-                    </div>
-                </div>
+
 
                 <button type="submit">Zarezerwuj Spotkanie</button>
             </form>
