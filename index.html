@@ -230,46 +230,38 @@
     const name = document.getElementById('userName').value;
     const email = document.getElementById('userEmail').value;
 
-    // Pobieramy wartości dokładnie w momencie wysyłania
+    // 1. POBIERANIE DANYCH - upewnij się, że te skróty (Mon, Tue...)
+    // zgadzają się z ID w Twoim HTML
     const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
-    const availability = {};
+    const availabilityData = {};
 
     days.forEach(day => {
-        const startVal = document.getElementById(`start-${day}`).value;
-        const endVal = document.getElementById(`end-${day}`).value;
-
-        availability[day] = {
-            start: startVal,
-            end: endVal
+        const startTime = document.getElementById(`start-${day}`).value;
+        const endTime = document.getElementById(`end-${day}`).value;
+        availabilityData[day] = {
+            start: startTime,
+            end: endTime
         };
     });
 
-    // Sprawdź w konsoli, czy dane są poprawne przed wysłaniem
-    console.log("Wysyłana dostępność:", availability);
+    // 2. DEBUGOWANIE - otwórz konsolę (F12) i zobacz, co się wypisuje przed wysłaniem
+    console.log("Dane do wysłania:", { name, email, availability: availabilityData });
 
-    try {
-        const response = await fetch(`${API_BASE_URL}/AddUser`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                name: name,
-                email: email,
-                availability: availability // Tu wysyłamy nasz nowy obiekt
-            })
-        });
+    // 3. WYSYŁANIE
+    const response = await fetch(`${API_BASE_URL}/AddUser`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            name: name,
+            email: email,
+            availability: availabilityData // KLUCZOWE: to musi być tutaj!
+        })
+    });
 
-        if (response.ok) {
-            alert('Użytkownik dodany pomyślnie!');
-            loadUsers(); // Odświeżenie listy w select-boxie
-        } else {
-            const errorText = await response.text();
-            alert('Błąd serwera: ' + errorText);
-        }
-    } catch (err) {
-        console.error('Błąd wysyłania:', err);
+    if (response.ok) {
+        alert("Użytkownik dodany!");
     }
 });
-
 
         document.addEventListener('DOMContentLoaded', () => {
             loadUsers();
