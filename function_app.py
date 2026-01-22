@@ -38,6 +38,7 @@ def AddUser(req: func.HttpRequest) -> func.HttpResponse:
 
     # Pobieramy dostępność z frontendu lub ustawiamy pusty słownik, jeśli nie wysłano
     custom_availability = req_body.get("availability")
+    logging.info(f"Otrzymana dostępność: {custom_availability}")
 
     if not name or not email:
         return func.HttpResponse("Nazwa i email są wymagane.", status_code=400, headers=CORS_HEADERS)
