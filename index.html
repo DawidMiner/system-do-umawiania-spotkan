@@ -255,56 +255,65 @@
             const dateInput = document.getElementById('appDate');
 
             async function loadAvailableSlots() {
-    const userSelect = document.getElementById('appUserId');
-    const dateInput = document.getElementById('appDate');
+                const userSelect = document.getElementById('appUserId');
+                const dateInput = document.getElementById('appDate');
 
-    const userId = userSelect.value;
-    const dateValue = dateInput.value;
+                const userId = userSelect.value;
+                const dateValue = dateInput.value;
 
-    if (!userId || !dateValue) {
-        console.log("Wybierz użytkownika i datę, aby zobaczyć dostępność w konsoli.");
-        return;
-    }
+                if (!userId || !dateValue) {
+                    console.log("Wybierz użytkownika i datę...");
+                    return;
+                }
 
-    try {
-        // 1. Pobieramy listę użytkowników, aby znaleźć wybraną osobę
-        const response = await fetch(`${API_BASE_URL}/GetUsers`);
-        const users = await response.json();
-        const selectedUser = users.find(u => u.id === userId);
+                try {
+                    // 1. Pobranie wszystkich użytkowników
+                    const response = await fetch(`${API_BASE_URL}/GetUsers`);
+                    const users = await response.json();
 
-        if (!selectedUser) {
-            console.error("Nie znaleziono użytkownika.");
-            return;
-        }
+                    // 2. Znalezienie wybranego pracownika
+                    const selectedUser = users.find(u => u.id === userId);
 
-        // 2. Sprawdzamy, jaki to dzień tygodnia (Mon, Tue, Wed...)
-        const selectedDate = new Date(dateValue);
-        const daysMap = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-        const dayKey = daysMap[selectedDate.getDay()];
+                    if (!selectedUser) {
+                        console.error("Nie znaleziono użytkownika o ID:", userId);
+                        return;
+                    }
 
-        // 3. Wyciągamy grafik dla tego dnia
-        const availability = selectedUser.availability || {};
-        const dayConfig = availability[dayKey];
+                    // 3. Rozpoznanie dnia tygodnia
+                    const selectedDate = new Date(dateValue);
+                    const daysMap = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+                    const dayKey = daysMap[selectedDate.getDay()];
 
-        console.log(`--- Sprawdzanie dostępności dla: ${selectedUser.name} ---`);
-        console.log(`Wybrana data: ${dateValue} (${dayKey})`);
+                    // --- DEBUGOWANIE W KONSOLI ---
+                    console.log("==========================================");
+                    console.log(`Pracownik: ${selectedUser.name}`);
+                    console.log(`Wybrany dzień tygodnia: ${dayKey}`);
 
-        if (dayConfig) {
-            console.log(`✅ Użytkownik pracuje w godzinach: ${dayConfig.start} - ${dayConfig.end}`);
+                    // Wyświetlenie całego słownika (obiektu) pracownika
+                    console.log("Pełny słownik danych pracownika z bazy:");
+                    console.dir(selectedUser);
 
-            // Opcjonalnie: logowanie zakresów (np. do generowania slotów)
-            const [startH, startM] = dayConfig.start.split(':');
-            const [endH, endM] = dayConfig.end.split(':');
-            console.log(`Godzina rozpoczęcia: ${startH}, Minuty: ${startM}`);
-            console.log(`Godzina zakończenia: ${endH}, Minuty: ${endM}`);
-        } else {
-            console.log(`❌ Użytkownik nie ma ustawionych godzin pracy dla dnia: ${dayKey}`);
-        }
+                    // Sprawdzenie samej dostępności
+                    if (selectedUser.availability) {
+                        console.log("Znaleziony słownik 'availability':");
+                        console.table(selectedUser.availability);
 
-    } catch (error) {
-        console.error("Błąd podczas odczytu dostępności:", error);
-    }
-}
+                        // Próba odczytu konkretnego dnia
+                        const specificDay = selectedUser.availability[dayKey];
+                        if (specificDay) {
+                            console.log(`✅ Sukces! Godziny dla ${dayKey}:`, specificDay);
+                        } else {
+                            console.warn(`⚠️ Brak klucza "${dayKey}" w słowniku availability tego pracownika.`);
+                        }
+                    } else {
+                        console.error("❌ Ten pracownik nie posiada w ogóle pola 'availability' w bazie danych!");
+                    }
+                    console.log("==========================================");
+
+                } catch (error) {
+                    console.error("Błąd podczas pobierania danych:", error);
+                }
+            }
 
 // Upewnij się, że event listenery są podpięte
 document.getElementById('appUserId').addEventListener('change', loadAvailableSlots);
