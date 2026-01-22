@@ -16,6 +16,8 @@
         #message { margin-top: 20px; padding: 10px; border-radius: 4px; font-weight: bold; }
         .success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
         .error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .day-row { display: flex; justify-content: space-between; margin-bottom: 5px; align-items: center; }
+                    .day-label { width: 100px; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -29,14 +31,26 @@
                 <label for="userEmail">Email:</label>
                 <input type="email" id="userEmail" required>
                 <h3>Godziny dostępności:</h3>
-                <div id="availability-settings">
+                <div id="availability-container">
                     <div class="day-row">
-                        <span>Poniedziałek:</span>
-                        <input type="time" id="start-Mon" value="08:00"> - <input type="time" id="end-Mon" value="16:00">
+                        <span class="day-label">Poniedziałek</span>
+                        <input type="time" id="start-Mon" value="08:00"> <span>do</span> <input type="time" id="end-Mon" value="16:00">
                     </div>
                     <div class="day-row">
-                        <span>Wtorek:</span>
-                        <input type="time" id="start-Tue" value="08:00"> - <input type="time" id="end-Tue" value="16:00">
+                        <span class="day-label">Wtorek</span>
+                        <input type="time" id="start-Tue" value="08:00"> <span>do</span> <input type="time" id="end-Tue" value="16:00">
+                    </div>
+                    <div class="day-row">
+                        <span class="day-label">Środa</span>
+                        <input type="time" id="start-Wed" value="08:00"> <span>do</span> <input type="time" id="end-Wed" value="16:00">
+                    </div>
+                    <div class="day-row">
+                        <span class="day-label">Czwartek</span>
+                        <input type="time" id="start-Thu" value="08:00"> <span>do</span> <input type="time" id="end-Thu" value="16:00">
+                    </div>
+                    <div class="day-row">
+                        <span class="day-label">Piątek</span>
+                        <input type="time" id="start-Fri" value="08:00"> <span>do</span> <input type="time" id="end-Fri" value="16:00">
                     </div>
                 </div>
                 <button type="submit">Dodaj Użytkownika</button>
@@ -212,29 +226,47 @@
 
         document.getElementById('addUserForm').addEventListener('submit', async (e) => {
     e.preventDefault();
+
     const name = document.getElementById('userName').value;
     const email = document.getElementById('userEmail').value;
 
-    // Tworzymy obiekt dostępności na podstawie wpisanych godzin
+    // Pobieramy wartości dokładnie w momencie wysyłania
     const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
     const availability = {};
 
     days.forEach(day => {
+        const startVal = document.getElementById(`start-${day}`).value;
+        const endVal = document.getElementById(`end-${day}`).value;
+
         availability[day] = {
-            start: document.getElementById(`start-${day}`).value,
-            end: document.getElementById(`end-${day}`).value
+            start: startVal,
+            end: endVal
         };
     });
 
-    const response = await fetch(`${API_BASE_URL}/AddUser`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email, availability })
-    });
+    // Sprawdź w konsoli, czy dane są poprawne przed wysłaniem
+    console.log("Wysyłana dostępność:", availability);
 
-    if (response.ok) {
-        alert("Użytkownik dodany z własnym grafikiem!");
-        loadUsers(); // Odśwież listę w select-boxie
+    try {
+        const response = await fetch(`${API_BASE_URL}/AddUser`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                name: name,
+                email: email,
+                availability: availability // Tu wysyłamy nasz nowy obiekt
+            })
+        });
+
+        if (response.ok) {
+            alert('Użytkownik dodany pomyślnie!');
+            loadUsers(); // Odświeżenie listy w select-boxie
+        } else {
+            const errorText = await response.text();
+            alert('Błąd serwera: ' + errorText);
+        }
+    } catch (err) {
+        console.error('Błąd wysyłania:', err);
     }
 });
 
