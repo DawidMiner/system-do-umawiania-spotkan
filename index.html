@@ -251,95 +251,66 @@
             loadUsers();
 
             const timeSelect = document.getElementById('appTime');
+            const userSelect = document.getElementById('appUserId');
+            const dateInput = document.getElementById('appDate');
+
+            async function loadAvailableSlots() {
     const userSelect = document.getElementById('appUserId');
     const dateInput = document.getElementById('appDate');
 
     const userId = userSelect.value;
-    const dateValue = dateInput.value; // Format: RRRR-MM-DD
+    const dateValue = dateInput.value;
 
-    // 1. Walidacja wejścia
     if (!userId || !dateValue) {
-        timeSelect.innerHTML = '<option value="" disabled selected>Wybierz osobę i datę</option>';
+        console.log("Wybierz użytkownika i datę, aby zobaczyć dostępność w konsoli.");
         return;
     }
 
     try {
-        // 2. Pobieramy listę wszystkich użytkowników, aby znaleźć naszą osobę i jej grafik
-        const usersResponse = await fetch(`${API_BASE_URL}/GetUsers`);
-        const users = await usersResponse.json();
+        // 1. Pobieramy listę użytkowników, aby znaleźć wybraną osobę
+        const response = await fetch(`${API_BASE_URL}/GetUsers`);
+        const users = await response.json();
         const selectedUser = users.find(u => u.id === userId);
 
-        if (!selectedUser || !selectedUser.availability) {
-            timeSelect.innerHTML = '<option value="" disabled>Brak zdefiniowanych godzin pracy</option>';
+        if (!selectedUser) {
+            console.error("Nie znaleziono użytkownika.");
             return;
         }
 
-        // 3. Sprawdzamy jaki to dzień tygodnia dla wybranej daty
+        // 2. Sprawdzamy, jaki to dzień tygodnia (Mon, Tue, Wed...)
         const selectedDate = new Date(dateValue);
         const daysMap = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-        const dayKey = daysMap[selectedDate.getDay()]; // Np. "Mon", "Tue"
+        const dayKey = daysMap[selectedDate.getDay()];
 
-        // 4. Pobieramy godziny dla tego konkretnego dnia z obiektu availability
-        const dayConfig = selectedUser.availability[dayKey];
+        // 3. Wyciągamy grafik dla tego dnia
+        const availability = selectedUser.availability || {};
+        const dayConfig = availability[dayKey];
 
-        if (!dayConfig) {
-            timeSelect.innerHTML = '<option value="" disabled selected>Osoba nie pracuje w ten dzień</option>';
-            return;
-        }
+        console.log(`--- Sprawdzanie dostępności dla: ${selectedUser.name} ---`);
+        console.log(`Wybrana data: ${dateValue} (${dayKey})`);
 
-        // 5. Pobieramy już umówione spotkania, żeby ich nie wyświetlać
-        const appointmentsResponse = await fetch(`${API_BASE_URL}/GetUserAppointments?user_id=${encodeURIComponent(userId)}`);
-        const appointments = await appointmentsResponse.json();
+        if (dayConfig) {
+            console.log(`✅ Użytkownik pracuje w godzinach: ${dayConfig.start} - ${dayConfig.end}`);
 
-        // Wyciągamy same godziny zajęte (w formacie HH:mm), które pasują do wybranej daty
-        const busyTimes = appointments
-            .filter(app => app.start_time_iso.startsWith(dateValue))
-            .map(app => {
-                // Wyciągamy HH:mm z formatu ISO "2025-12-10T08:30:00Z"
-                const dateObj = new Date(app.start_time_iso);
-                return dateObj.getUTCHours().toString().padStart(2, '0') + ":" +
-                       dateObj.getUTCMinutes().toString().padStart(2, '0');
-            });
-
-        // 6. Generujemy listę godzin (sloty co 30 minut)
-        timeSelect.innerHTML = '<option value="" disabled selected>Wybierz godzinę</option>';
-
-        const [startH, startM] = dayConfig.start.split(':').map(Number);
-        const [endH, endM] = dayConfig.end.split(':').map(Number);
-
-        let currentH = startH;
-        let currentM = startM;
-
-        let hasAnySlot = false;
-
-        while (currentH < endH || (currentH === endH && currentM < endM)) {
-            const timeString = `${currentH.toString().padStart(2, '0')}:${currentM.toString().padStart(2, '0')}`;
-
-            // Sprawdzamy czy ta godzina nie jest już zajęta
-            if (!busyTimes.includes(timeString)) {
-                const option = document.createElement('option');
-                option.value = timeString;
-                option.textContent = timeString;
-                timeSelect.appendChild(option);
-                hasAnySlot = true;
-            }
-
-            // Przeskakujemy o 30 minut
-            currentM += 30;
-            if (currentM >= 60) {
-                currentM = 0;
-                currentH += 1;
-            }
-        }
-
-        if (!hasAnySlot) {
-            timeSelect.innerHTML = '<option value="" disabled>Brak wolnych terminów w tym dniu</option>';
+            // Opcjonalnie: logowanie zakresów (np. do generowania slotów)
+            const [startH, startM] = dayConfig.start.split(':');
+            const [endH, endM] = dayConfig.end.split(':');
+            console.log(`Godzina rozpoczęcia: ${startH}, Minuty: ${startM}`);
+            console.log(`Godzina zakończenia: ${endH}, Minuty: ${endM}`);
+        } else {
+            console.log(`❌ Użytkownik nie ma ustawionych godzin pracy dla dnia: ${dayKey}`);
         }
 
     } catch (error) {
-        console.error('Błąd:', error);
-        timeSelect.innerHTML = '<option value="" disabled>Błąd ładowania danych</option>';
+        console.error("Błąd podczas odczytu dostępności:", error);
     }
+}
+
+// Upewnij się, że event listenery są podpięte
+document.getElementById('appUserId').addEventListener('change', loadAvailableSlots);
+document.getElementById('appDate').addEventListener('change', loadAvailableSlots);
+            userSelect.addEventListener('change', loadAvailableSlots);
+            dateInput.addEventListener('change', loadAvailableSlots);
         });
 
     </script>
