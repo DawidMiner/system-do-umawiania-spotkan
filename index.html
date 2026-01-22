@@ -51,6 +51,17 @@
                     <option value="" disabled selected>Wybierz użytkownika, aby załadować terminy</option>
                 </select>
                 <br>
+                <h3>Godziny dostępności:</h3>
+                <div id="availability-settings">
+                    <div class="day-row">
+                        <span>Poniedziałek:</span>
+                        <input type="time" id="start-Mon" value="08:00"> - <input type="time" id="end-Mon" value="16:00">
+                    </div>
+                    <div class="day-row">
+                        <span>Wtorek:</span>
+                        <input type="time" id="start-Tue" value="08:00"> - <input type="time" id="end-Tue" value="16:00">
+                    </div>
+                </div>
 
                 <button type="submit">Zarezerwuj Spotkanie</button>
             </form>
@@ -197,6 +208,34 @@
                 selectElement.appendChild(option);
             }
         }
+
+        document.getElementById('addUserForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const name = document.getElementById('userName').value;
+    const email = document.getElementById('userEmail').value;
+
+    // Tworzymy obiekt dostępności na podstawie wpisanych godzin
+    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
+    const availability = {};
+
+    days.forEach(day => {
+        availability[day] = {
+            start: document.getElementById(`start-${day}`).value,
+            end: document.getElementById(`end-${day}`).value
+        };
+    });
+
+    const response = await fetch(`${API_BASE_URL}/AddUser`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email, availability })
+    });
+
+    if (response.ok) {
+        alert("Użytkownik dodany z własnym grafikiem!");
+        loadUsers(); // Odśwież listę w select-boxie
+    }
+});
 
 
         document.addEventListener('DOMContentLoaded', () => {

@@ -20,47 +20,43 @@ CORS_HEADERS = {
     "Access-Control-Allow-Headers": "Content-Type"
 }
 
+
 @app.route(route="AddUser", methods=["POST", "OPTIONS"])
 def AddUser(req: func.HttpRequest) -> func.HttpResponse:
-
     if req.method == "OPTIONS":
-        return func.HttpResponse(
-            status_code=200,
-            headers=CORS_HEADERS
-        )
+        return func.HttpResponse(status_code=200, headers=CORS_HEADERS)
 
-    logging.info("HTTP trigger processed request to add a User.")
+    logging.info("Dodawanie użytkownika z niestandardową dostępnością.")
 
     try:
         req_body = req.get_json()
     except ValueError:
-        return func.HttpResponse(
-            "Proszę przekazać dane w formacie JSON.",
-            status_code=400,
-            headers=CORS_HEADERS
-        )
+        return func.HttpResponse("Błąd JSON", status_code=400, headers=CORS_HEADERS)
 
     name = req_body.get("name")
     email = req_body.get("email")
 
-    if not name or not email:
-        return func.HttpResponse(
-            "Wymagane pola to 'name' i 'email'.",
-            status_code=400,
-            headers=CORS_HEADERS
-        )
+    # Pobieramy dostępność z frontendu lub ustawiamy pusty słownik, jeśli nie wysłano
+    custom_availability = req_body.get("availability")
 
-    default_availability = {
-        "days": ["Mon", "Tue", "Wed", "Thu", "Fri"],
-        "start_time": "08:00",
-        "end_time": "16:00"
-    }
+    if not name or not email:
+        return func.HttpResponse("Nazwa i email są wymagane.", status_code=400, headers=CORS_HEADERS)
+
+    # Nowa struktura: jeśli użytkownik nie podał grafiku, przypisujemy standardowy 8-16
+    if not custom_availability:
+        custom_availability = {
+            "Mon": {"start": "08:00", "end": "16:00"},
+            "Tue": {"start": "08:00", "end": "16:00"},
+            "Wed": {"start": "08:00", "end": "16:00"},
+            "Thu": {"start": "08:00", "end": "16:00"},
+            "Fri": {"start": "08:00", "end": "16:00"}
+        }
 
     new_user = {
         "id": str(uuid.uuid4()),
         "name": name,
         "email": email,
-        "availability": default_availability,
+        "availability": custom_availability,  # Zapisujemy szczegółowy grafik
         "TenantId": TENANT_ID_VALUE
     }
 
@@ -68,23 +64,12 @@ def AddUser(req: func.HttpRequest) -> func.HttpResponse:
         client = CosmosClient(os.environ["COSMOS_ENDPOINT"], os.environ["COSMOS_KEY"])
         database = client.get_database_client(os.environ["COSMOS_DB_NAME"])
         users_container = database.get_container_client(CONTAINER_USERS)
-
         users_container.create_item(body=new_user)
 
-        return func.HttpResponse(
-            json.dumps(new_user),
-            status_code=201,
-            mimetype="application/json",
-            headers=CORS_HEADERS
-        )
-
+        return func.HttpResponse(json.dumps(new_user), status_code=201, mimetype="application/json",
+                                 headers=CORS_HEADERS)
     except Exception as e:
-        logging.error(f"Błąd: {e}")
-        return func.HttpResponse(
-            f"Błąd: {e}",
-            status_code=500,
-            headers=CORS_HEADERS
-        )
+        return func.HttpResponse(f"Błąd: {e}", status_code=500, headers=CORS_HEADERS)
 
 
 
