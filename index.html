@@ -257,61 +257,49 @@
             async function loadAvailableSlots() {
                 const userSelect = document.getElementById('appUserId');
                 const dateInput = document.getElementById('appDate');
-
                 const userId = userSelect.value;
                 const dateValue = dateInput.value;
 
-                if (!userId || !dateValue) {
-                    console.log("Wybierz użytkownika i datę...");
-                    return;
-                }
+                if (!userId || !dateValue) return;
 
                 try {
-                    // 1. Pobranie wszystkich użytkowników
                     const response = await fetch(`${API_BASE_URL}/GetUsers`);
                     const users = await response.json();
 
-                    // 2. Znalezienie wybranego pracownika
+                    // Znajdujemy pracownika
                     const selectedUser = users.find(u => u.id === userId);
 
                     if (!selectedUser) {
-                        console.error("Nie znaleziono użytkownika o ID:", userId);
+                        console.error("Nie znaleziono pracownika w pobranej liście.");
                         return;
                     }
 
-                    // 3. Rozpoznanie dnia tygodnia
+                    // Ustalamy dzień tygodnia (Mon, Tue, Wed...)
                     const selectedDate = new Date(dateValue);
                     const daysMap = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
                     const dayKey = daysMap[selectedDate.getDay()];
 
-                    // --- DEBUGOWANIE W KONSOLI ---
-                    console.log("==========================================");
-                    console.log(`Pracownik: ${selectedUser.name}`);
-                    console.log(`Wybrany dzień tygodnia: ${dayKey}`);
+                    console.log(`--- DEBUG DLA: ${selectedUser.name} ---`);
+                    console.log(`Dzień tygodnia: ${dayKey}`);
 
-                    // Wyświetlenie całego słownika (obiektu) pracownika
-                    console.log("Pełny słownik danych pracownika z bazy:");
-                    console.dir(selectedUser);
+                    // WYŚWIETLENIE CAŁEGO SŁOWNIKA (zgodnie z Twoim screenem)
+                    console.log("Pełna dostępność z bazy:", selectedUser.availability);
 
-                    // Sprawdzenie samej dostępności
-                    if (selectedUser.availability) {
-                        console.log("Znaleziony słownik 'availability':");
-                        console.table(selectedUser.availability);
+                    // POBIERANIE GODZIN DLA KONKRETNEGO DNIA
+                    // Używamy bezpiecznego dostępu: selectedUser.availability[dayKey]
+                    const dayConfig = selectedUser.availability ? selectedUser.availability[dayKey] : null;
 
-                        // Próba odczytu konkretnego dnia
-                        const specificDay = selectedUser.availability[dayKey];
-                        if (specificDay) {
-                            console.log(`✅ Sukces! Godziny dla ${dayKey}:`, specificDay);
-                        } else {
-                            console.warn(`⚠️ Brak klucza "${dayKey}" w słowniku availability tego pracownika.`);
-                        }
+                    if (dayConfig) {
+                        console.log(`✅ GODZINY PRACY na ${dayKey}:`, dayConfig.start, "-", dayConfig.end);
+
+                        // Tutaj możesz od razu wywołać funkcję, która wypełni Select Box godzinami
+                        // generateTimeOptions(dayConfig.start, dayConfig.end);
                     } else {
-                        console.error("❌ Ten pracownik nie posiada w ogóle pola 'availability' w bazie danych!");
+                        console.warn(`❌ Brak zdefiniowanych godzin pracy w bazie dla dnia: ${dayKey}`);
                     }
-                    console.log("==========================================");
 
                 } catch (error) {
-                    console.error("Błąd podczas pobierania danych:", error);
+                    console.error("Błąd podczas komunikacji z API:", error);
                 }
             }
 
