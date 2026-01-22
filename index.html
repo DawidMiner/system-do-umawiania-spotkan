@@ -96,43 +96,7 @@
             }, 8000);
         }
 
-        document.getElementById('userForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
 
-            const name = document.getElementById('userName').value;
-            const email = document.getElementById('userEmail').value;
-            console.log(email);
-
-            const userData = { name, email };
-            console.log(userData);
-
-            try {
-                const response = await fetch(`${API_BASE_URL}/AddUser`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(userData)
-                });
-
-                const contentType = response.headers.get("content-type");
-                let result = {};
-                if (contentType && contentType.indexOf("application/json") !== -1) {
-                    result = await response.json();
-                }
-
-                if (response.ok) {
-                    const successText = `Użytkownik dodany! ID: ${result.id || 'N/A'}. (Skopiuj to ID do rezerwacji!)`;
-                    displayMessage(successText, true);
-                    console.log('Nowy Użytkownik:', result);
-                    document.getElementById('appUserId').value = result.id || '';
-                } else {
-                    const statusText = result.message || JSON.stringify(result);
-                    displayMessage(`Błąd (${response.status}): ${statusText || response.statusText}`, false);
-                }
-            } catch (error) {
-                displayMessage(`Błąd połączenia: Serwer Functions nie działa lub CORS jest wyłączony.`, false);
-                console.error('Błąd:', error);
-            }
-        });
 
         document.getElementById('appointmentForm').addEventListener('submit', async (e) => {
             e.preventDefault();
