@@ -247,10 +247,10 @@
     }
 });
 
-        async function loadAvailableSlots() {
-        loadUsers();
+        document.addEventListener('DOMContentLoaded', () => {
+            loadUsers();
 
-    const timeSelect = document.getElementById('appTime');
+            const timeSelect = document.getElementById('appTime');
     const userSelect = document.getElementById('appUserId');
     const dateInput = document.getElementById('appDate');
 
@@ -340,7 +340,7 @@
         console.error('Błąd:', error);
         timeSelect.innerHTML = '<option value="" disabled>Błąd ładowania danych</option>';
     }
-}
+        });
 
     </script>
 </body>
