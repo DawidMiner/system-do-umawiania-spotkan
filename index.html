@@ -255,51 +255,91 @@
             const dateInput = document.getElementById('appDate');
 
             async function loadAvailableSlots() {
-                const userSelect = document.getElementById('appUserId');
-                const dateInput = document.getElementById('appDate');
                 const userId = userSelect.value;
                 const dateValue = dateInput.value;
 
-                if (!userId || !dateValue) return;
+                if (!userId) {
+                    timeSelect.innerHTML = '<option value="" disabled selected>Wybierz użytkownika, aby załadować terminy</option>';
+                    return;
+                }
+
+                if (!dateValue) {
+                    timeSelect.innerHTML = '<option value="" disabled selected>Wybierz datę, aby załadować terminy</option>';
+                    return;
+                }
 
                 try {
-                    const response = await fetch(`${API_BASE_URL}/GetUsers`);
-                    const users = await response.json();
-
-                    // Znajdujemy pracownika
+                    // 1. Pobieramy dane użytkowników, aby wyciągnąć grafik (teraz zawiera pole availability)
+                    const usersResponse = await fetch(`${API_BASE_URL}/GetUsers`);
+                    const users = await usersResponse.json();
                     const selectedUser = users.find(u => u.id === userId);
 
-                    if (!selectedUser) {
-                        console.error("Nie znaleziono pracownika w pobranej liście.");
+                    if (!selectedUser || !selectedUser.availability) {
+                        timeSelect.innerHTML = '<option value="" disabled selected>Brak zdefiniowanego grafiku użytkownika</option>';
                         return;
                     }
 
-                    // Ustalamy dzień tygodnia (Mon, Tue, Wed...)
+                    // 2. Określamy dzień tygodnia dla wybranej daty
                     const selectedDate = new Date(dateValue);
                     const daysMap = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
                     const dayKey = daysMap[selectedDate.getDay()];
 
-                    console.log(`--- DEBUG DLA: ${selectedUser.name} ---`);
-                    console.log(`Dzień tygodnia: ${dayKey}`);
+                    // 3. Pobieramy godziny pracy dla tego konkretnego dnia
+                    const dayConfig = selectedUser.availability[dayKey];
+                    if (!dayConfig) {
+                        timeSelect.innerHTML = '<option value="" disabled selected>Osoba nie pracuje w ten dzień</option>';
+                        return;
+                    }
 
-                    // WYŚWIETLENIE CAŁEGO SŁOWNIKA (zgodnie z Twoim screenem)
-                    console.log("Pełna dostępność z bazy:", selectedUser.availability);
+                    const [openingHour, openingMinutes] = dayConfig.start.split(':').map(Number);
+                    const [closingHour, closingMinutes] = dayConfig.end.split(':').map(Number);
 
-                    // POBIERANIE GODZIN DLA KONKRETNEGO DNIA
-                    // Używamy bezpiecznego dostępu: selectedUser.availability[dayKey]
-                    const dayConfig = selectedUser.availability ? selectedUser.availability[dayKey] : null;
+                    // 4. Pobieramy istniejące spotkania do odfiltrowania zajętych terminów
+                    const appointmentsResponse = await fetch(`${API_BASE_URL}/GetUserAppointments?user_id=${encodeURIComponent(userId)}`, {
+                        method: 'GET',
+                        headers: { 'Content-Type': 'application/json' }
+                    });
+                    const appointments = await appointmentsResponse.json();
 
-                    if (dayConfig) {
-                        console.log(`✅ GODZINY PRACY na ${dayKey}:`, dayConfig.start, "-", dayConfig.end);
+                    // 5. Generujemy listę wszystkich możliwych slotów (co 30 minut)
+                    const intervalMinutes = 30;
+                    const baseDate = new Date(dateValue);
+                    baseDate.setHours(0, 0, 0, 0);
 
-                        // Tutaj możesz od razu wywołać funkcję, która wypełni Select Box godzinami
-                        // generateTimeOptions(dayConfig.start, dayConfig.end);
+                    let slots = [];
+                    let currentSlot = new Date(baseDate);
+                    currentSlot.setHours(openingHour, openingMinutes, 0, 0);
+
+                    let endTime = new Date(baseDate);
+                    endTime.setHours(closingHour, closingMinutes, 0, 0);
+
+                    while (currentSlot < endTime) {
+                        slots.push(new Date(currentSlot));
+                        currentSlot.setMinutes(currentSlot.getMinutes() + intervalMinutes);
+                    }
+
+                    // 6. Filtrujemy zajęte terminy
+                    // Porównujemy czas w milisekundach dla większej precyzji
+                    const busyTimes = appointments.map(app => new Date(app.start_time).getTime());
+
+                    const availableSlots = slots.filter(slot => !busyTimes.includes(slot.getTime()));
+
+                    // 7. Wypełniamy Select Box
+                    timeSelect.innerHTML = '';
+
+                    if (availableSlots.length === 0) {
+                        timeSelect.innerHTML = '<option value="" disabled>Brak wolnych terminów</option>';
                     } else {
-                        console.warn(`❌ Brak zdefiniowanych godzin pracy w bazie dla dnia: ${dayKey}`);
+                        timeSelect.innerHTML = '<option value="" disabled selected>Wybierz godzinę</option>';
+                        availableSlots.forEach(slot => {
+                            const timeStr = slot.toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' });
+                            timeSelect.innerHTML += `<option value="${timeStr}">${timeStr}</option>`;
+                        });
                     }
 
                 } catch (error) {
-                    console.error("Błąd podczas komunikacji z API:", error);
+                    console.error('Błąd ładowania terminów:', error);
+                    timeSelect.innerHTML = '<option value="" disabled>Błąd połączenia z serwerem</option>';
                 }
             }
 

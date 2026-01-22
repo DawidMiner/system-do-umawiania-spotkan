@@ -156,14 +156,10 @@ def AddAppointment(req: func.HttpRequest) -> func.HttpResponse:
 
 @app.route(route="GetUsers", methods=["GET", "OPTIONS"])
 def GetUsers(req: func.HttpRequest) -> func.HttpResponse:
-
     if req.method == "OPTIONS":
-        return func.HttpResponse(
-            status_code=200,
-            headers=CORS_HEADERS
-        )
+        return func.HttpResponse(status_code=200, headers=CORS_HEADERS)
 
-    logging.info("HTTP trigger processed request to get users list.")
+    logging.info("Pobieranie listy użytkowników wraz z dostępnością.")
 
     try:
         client = CosmosClient(os.environ["COSMOS_ENDPOINT"], os.environ["COSMOS_KEY"])
@@ -178,10 +174,15 @@ def GetUsers(req: func.HttpRequest) -> func.HttpResponse:
             partition_key=TENANT_ID_VALUE
         ))
 
+        # POPRAWKA: Dodajemy pole "availability" do zwracanych danych
         filtered_users = [
-            {"id": u.get("id"), "name": u.get("name")}
+            {
+                "id": u.get("id"),
+                "name": u.get("name"),
+                "availability": u.get("availability") # <--- TO JEST KLUCZOWE
+            }
             for u in users_data
-            if "name" in u and u["name"]
+            if "name" in u and u.get("id") # Sprawdzamy czy to użytkownik, a nie spotkanie
         ]
 
         return func.HttpResponse(
@@ -192,12 +193,8 @@ def GetUsers(req: func.HttpRequest) -> func.HttpResponse:
         )
 
     except Exception as e:
-        logging.error(f"Błąd podczas pobierania listy użytkowników: {e}")
-        return func.HttpResponse(
-            f"Błąd serwera: {e}",
-            status_code=500,
-            headers=CORS_HEADERS
-        )
+        logging.error(f"Błąd GetUsers: {e}")
+        return func.HttpResponse(f"Błąd: {e}", status_code=500, headers=CORS_HEADERS)
 
 
 @app.route(route="GetUserAppointments", methods=["GET", "OPTIONS"])
